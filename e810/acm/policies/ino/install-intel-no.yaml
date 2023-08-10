@@ -1,0 +1,68 @@
+---
+apiVersion: policy.open-cluster-management.io/v1
+kind: Policy
+metadata:
+  annotations:
+    policy.open-cluster-management.io/standards: NIST SP 800-53
+    policy.open-cluster-management.io/categories: CM Configuration Management
+    policy.open-cluster-management.io/controls: CM-2 Baseline Configuration
+    ran.openshift.io/ztp-deploy-wave: "10"
+  name: intel-network-deployment
+  namespace: ztp-group-du-sno
+spec:
+  disabled: false
+  remediationAction: enforce
+  policy-templates:
+    - objectDefinition:
+        apiVersion: policy.open-cluster-management.io/v1
+        kind: ConfigurationPolicy
+        metadata:
+          name: intel-network-deployment-config
+        spec:
+          namespaceselector:
+            exclude:
+              - kube-*
+            include:
+              - '*'
+          object-templates:
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: operators.coreos.com/v1alpha1
+                kind: Subscription
+                metadata:
+                  name: intel-ethernet-operator
+                  namespace: openshift-sriov-network-operator
+                spec:
+                  channel: alpha
+                  installPlanApproval: Automatic
+                  name: intel-ethernet-operator
+                  source: certified-operators
+                  sourceNamespace: openshift-marketplace
+                  startingCSV: intel-ethernet-operator.v1.0.0
+---
+apiVersion: apps.open-cluster-management.io/v1
+kind: PlacementRule
+metadata:
+  name: intel-network-deployment-placementrules
+  namespace: ztp-group-du-sno
+spec:
+  clusterSelector:
+    matchExpressions:
+      - key: name
+        operator: In
+        values:
+          - zt-sno4
+---
+apiVersion: policy.open-cluster-management.io/v1
+kind: PlacementBinding
+metadata:
+  name: intel-network-deployment-placementbinding
+  namespace: ztp-group-du-sno
+placementRef:
+  apiGroup: apps.open-cluster-management.io
+  kind: PlacementRule
+  name: intel-network-deployment-placementrules
+subjects:
+  - apiGroup: policy.open-cluster-management.io
+    kind: Policy
+    name: intel-network-deployment
