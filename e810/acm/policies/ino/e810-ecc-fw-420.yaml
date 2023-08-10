@@ -1,0 +1,14 @@
+apiVersion: ethernet.intel.com/v1
+kind: EthernetClusterConfig
+metadata:
+  name: config
+  namespace: openshift-sriov-network-operator 
+spec:
+  nodeSelectors:
+    kubernetes.io/hostname: zt-sno4.inbound.vz.bos2.lab
+  deviceSelector:
+    pciAddress: "0000:18:00.0"
+  deviceConfig:
+    fwURL: "http://jumphost.inbound.vz.bos2.lab/pb-firm/E810_NVMUpdatePackage_v4_20_Linux.tar.gz"
+    fwChecksum: "36ce159e53e6060f2ac4e3419db8a21e3d982a85" 
+

@@ -1,0 +1,145 @@
+apiVersion: policy.open-cluster-management.io/v1
+kind: Policy
+metadata:
+  name: e810-fw-254
+  namespace: ztp-group-du-sno
+  annotations:
+    policy.open-cluster-management.io/standards: NIST SP 800-53
+    policy.open-cluster-management.io/categories: CM Configuration Management
+    policy.open-cluster-management.io/controls: CM-2 Baseline Configuration
+spec:
+  remediationAction: inform
+  disabled: false
+  policy-templates:
+    - objectDefinition:
+        apiVersion: policy.open-cluster-management.io/v1
+        kind: ConfigurationPolicy
+        metadata:
+          name: e810-fw-254
+        spec:
+          namespaceSelector:
+            exclude:
+              - kube-*
+            include:
+              - '*'
+          object-templates:
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: v1
+                kind: Pod
+                metadata:
+                  labels:
+                    app: fwupdater-2.54
+                  name: fwupdater-2.54
+                  annotations:
+                    openshift.io/scc: privileged
+                  namespace: default
+                spec:
+                  dnsPolicy: ClusterFirstWithHostNet
+                  enableServiceLinks: true
+                  hostNetwork: true
+                  hostPID: true
+                  preemptionPolicy: PreemptLowerPriority
+                  priority: 0
+                  restartPolicy: OnFailure
+                  schedulerName: default-scheduler
+                  securityContext: {}
+                  terminationGracePeriodSeconds: 30
+                  volumes:
+                  - hostPath:
+                      path: /run
+                      type: ""
+                    name: run
+                  - hostPath:
+                      path: /usr/bin/
+                      type: ""
+                    name: binaries
+                  - emptyDir: {}
+                    name: run-volume
+                  - hostPath:
+                      path: /lib/modules
+                      type: ""
+                    name: libmodules
+                  - emptyDir: {}
+                    name: ocpfw
+                  - hostPath:
+                      path: /var/lib/firmware/intel/ice/ddp
+                      type: ""
+                    name: ocpddp
+                  - hostPath:
+                      path: /usr/lib
+                      type: ""
+                    name: lib
+                  - hostPath:
+                      path: /usr/lib64
+                      type: ""
+                    name: lib64
+                  containers:
+                  - image: jumphost.inbound.vz.bos2.lab:8443/ocp4/intel/intel-e810-fwupdater:2.54
+                    name: fwupdater
+                    env:
+                    # The FW_URL is just an example. Replace with your appropriate URL.
+                        - name: FW_URL
+                          value: "http://jumphost.inbound.vz.bos2.lab/pb-firm/Verizon_E810_NVMUpdatePackage_v2_54_1_39_32_9_Linux.tar.gz"
+                    # If value is 0000, fwupdate.sh will autodetect the PCI ids of the NIC to be updated
+                        - name: LOCATION
+                          value: "0000"
+                    command: ['sh', '-c', 'rm -fr /run/fwupdater; /app/fwupdater.sh']
+                    # This URL should be replaced with your private repo and image
+                    imagePullPolicy: Always
+                    securityContext:
+                      privileged: true
+                      readOnlyRootFilesystem: true
+                      runAsUser: 0
+                    terminationMessagePath: /dev/termination-log
+                    terminationMessagePolicy: File
+                    volumeMounts:
+                    - mountPath: /host/run
+                      name: run
+                    - mountPath: /run
+                      name: run-volume
+                    - mountPath: /host/bin/
+                      name: binaries
+                    - mountPath: /lib/modules
+                      name: libmodules
+                    - mountPath: /host/usr/lib
+                      name: lib
+                    - mountPath: /host/lib
+                      name: lib
+                    - mountPath: /host/usr/lib64
+                      name: lib64
+                    - mountPath: /host/lib64
+                      name: lib64
+                    - mountPath: /lib/firmware
+                      name: ocpfw
+                    - mountPath: /host/var/lib/firmware/intel/ice/ddp/
+                      name: ocpddp
+---
+apiVersion: policy.open-cluster-management.io/v1
+kind: PlacementBinding
+metadata:
+  name: e810-fw-254-binding
+  namespace: ztp-group-du-sno
+placementRef:
+  name: e810-fw-254-placement
+  kind: PlacementRule
+  apiGroup: apps.open-cluster-management.io
+subjects:
+- name: e810-fw-254
+  kind: Policy
+  apiGroup: policy.open-cluster-management.io
+---
+apiVersion: apps.open-cluster-management.io/v1
+kind: PlacementRule
+metadata:
+  name: e810-fw-254-placement
+  namespace: ztp-group-du-sno
+spec:
+  clusterSelector:
+    matchExpressions:
+      - key: name
+        operator: In
+        values:
+          - zt-sno4
+      - key: ztp-done
+        operator: Exists
